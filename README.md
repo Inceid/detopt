@@ -69,19 +69,20 @@ The user should be able to run `DETOPT` on a real dataset with the command line 
 
 ### 5. Output
 
-By default, `DETOPT` outputs a single file with suffix `results.tsv` which, for each mutation afflicted by copy number aberrations, reports the mutation ID, the phylogenetic node to which it was assigned, and the phylogenetic node to which its associated aberrant state(s) were assigned. An example of this format is given below.
+By default, `DETOPT` outputs a single file with suffix `results.tsv` which, for each mutation afflicted by copy number aberrations, reports the mutation ID, the phylogenetic node to which it was assigned, and the phylogenetic nodes to which each of its associated aberrant state(s) were assigned. An example of this format is given below. The `CNA_ASSIGNMENTS` column can be interpreted as follows (for example): `0:(1,1);1:(2,1)` indicates Node 0 maps to copy number state (1,1), whereas Node 1 maps to copy number state (2,1).
 
-	MUT_ID	NODE_ASSIGNED	NODE_OF_CNA
-	mut11	2	7
-	mut2	15	0
-	mut33	17	13
-	mut38	6	10
-	mut50	17	15
-	mut61	11	6
-	mut69	10	15
-	mut78	3	1
-	mut85	16	19
-	mut86	16	0
+	MUT_ID	NODE_ASSIGNED	CNA_ASSIGNMENTS
+	mut11	2	0:(1,1);1:(1,1);10:(1,0);11:(1,0);12:(1,0);13:(1,1);14:(1,1);15:(1,1);16:(1,0);17:(1,1);18:(1,1);19:(1,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,0);8:(1,0);9:(1,0);ROOT:(1,1)
+	mut2	15	0:(2,1);1:(2,1);10:(2,1);11:(2,1);12:(2,1);13:(2,1);14:(2,1);15:(2,1);16:(2,1);17:(2,1);18:(2,1);19:(2,1);2:(2,1);3:(2,1);4:(2,1);5:(2,1);6:(2,1);7:(2,1);8:(2,1);9:(2,1);ROOT:(1,1)
+	mut33	17	0:(1,1);1:(1,1);10:(1,1);11:(1,1);12:(1,1);13:(2,1);14:(1,1);15:(1,1);16:(1,1);17:(1,1);18:(1,1);19:(1,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,1);8:(1,1);9:(1,1);ROOT:(1,1)
+	mut38	6	0:(1,1);1:(1,1);10:(1,0);11:(1,1);12:(1,1);13:(1,1);14:(1,1);15:(1,1);16:(1,1);17:(1,1);18:(1,1);19:(1,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,1);8:(1,1);9:(1,1);ROOT:(1,1)
+	mut50	17	0:(1,1);1:(1,1);10:(1,1);11:(1,1);12:(1,1);13:(1,1);14:(1,1);15:(2,1);16:(1,1);17:(1,1);18:(1,1);19:(1,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,1);8:(1,1);9:(1,1);ROOT:(1,1)
+	mut61	11	0:(1,1);1:(1,1);10:(1,0);11:(1,0);12:(1,0);13:(1,1);14:(1,1);15:(1,1);16:(1,0);17:(1,1);18:(1,1);19:(1,0);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,0);7:(1,0);8:(1,0);9:(1,0);ROOT:(1,1)
+	mut69	10	0:(1,1);1:(1,1);10:(1,1);11:(1,1);12:(1,1);13:(1,1);14:(1,1);15:(2,1);16:(1,1);17:(1,1);18:(1,1);19:(1,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,1);8:(1,1);9:(1,1);ROOT:(1,1)
+	mut78	3	0:(1,1);1:(2,1);10:(2,1);11:(2,1);12:(2,1);13:(2,1);14:(1,1);15:(1,1);16:(2,1);17:(1,1);18:(1,1);19:(2,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(2,1);7:(2,1);8:(2,1);9:(2,1);ROOT:(1,1)
+	mut85	16	0:(1,1);1:(1,1);10:(1,1);11:(1,1);12:(1,1);13:(1,1);14:(1,1);15:(1,1);16:(1,1);17:(1,1);18:(1,1);19:(2,1);2:(1,1);3:(1,1);4:(1,1);5:(1,1);6:(1,1);7:(1,1);8:(1,1);9:(1,1);ROOT:(1,1)
+	mut86	16	0:(2,1);1:(2,1);10:(2,1);11:(2,1);12:(2,1);13:(2,1);14:(2,1);15:(2,1);16:(2,1);17:(2,1);18:(2,1);19:(2,1);2:(2,1);3:(2,1);4:(2,1);5:(2,1);6:(2,1);7:(2,1);8:(2,1);9:(2,1);ROOT:(1,1)
+
 
 
 ### 6. Correspondence

@@ -19,9 +19,9 @@
 - You can download and install Python [here](https://www.python.org/downloads/).
 - Finally, download and install the Gurobi Python interface `gurobipy` with:
 
-'''
+```
 python -m pip install gurobipy
-'''
+```
 
 ### 2. Download
 

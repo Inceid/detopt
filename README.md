@@ -16,7 +16,7 @@
 - Gurobi offers free software licenses for academic use. Download Gurobi here: www.gurobi.com/downloads/gurobi-optimizer-eula/. 
 - Follow the instructions at www.gurobi.com/academia/academic-program-and-licenses/ for obtaining a license.
 - Note that successful use of Gurobi requires modification of multiple of environment variables as described in the Software Installation Guide here: https://www.gurobi.com/documentation/9.5/quickstart_linux/software_installation_guid.html.
-- You can download and install Python [here](https://www.python.org/downloads/).
+- For downloading and installing Python please visit: https://www.python.org/downloads/.
 - Finally, download and install the Gurobi Python interface `gurobipy` with:
 
 ```

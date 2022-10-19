@@ -1,5 +1,5 @@
 # detopt
-`DETOPT` is a method to efficiently assign SNVs affected by copy number aberrations trees of tumor evolution.
+`DETOPT` is a method to efficiently assign SNVs affected by copy number aberrations to trees of tumor progression (also known as trees of tumor evolution).
 
 
 ## Dependencies
@@ -9,11 +9,13 @@
 
 
 ## Setup
-For this version, we assume the user is using Linux. Setting up `DETOPT` on your local machine can be accomplished with the following stepsL
+`DETOPT` is currently supported on LINUX OS. Setting up `DETOPT` on your local machine can be accomplished with the following steps:
 
 ### 1. Resolving Dependencies
 
-- Gurobi offers free software licenses for academic use. Download Gurobi [here](https://www.gurobi.com/downloads/gurobi-optimizer-eula/) and follow the instructions [here](https://www.gurobi.com/academia/academic-program-and-licenses/) for obtaining a license.
+- Gurobi offers free software licenses for academic use. Download Gurobi here: www.gurobi.com/downloads/gurobi-optimizer-eula/. 
+- Follow the instructions at www.gurobi.com/academia/academic-program-and-licenses/ for obtaining a license.
+- Note that successful use of Gurobi requires modification of multiple of environment variables as described in the Software Installation Guide here: https://www.gurobi.com/documentation/9.5/quickstart_linux/software_installation_guid.html.
 - You can download and install Python [here](https://www.python.org/downloads/).
 
 
@@ -27,10 +29,10 @@ git clone https://github.com/Inceid/detopt
 
 ### 3. Testing
 
-You can run `DETOPT` on the provided simulated dataset with the following command. Please ensure that any simulated `reads.input` files are contained in the `sims/` directory in order for this command to work.
+You can run `DETOPT` on the provided simulated dataset with the following command. Please ensure that any simulated `reads.input` files are contained in the `input/` directory in order for this command to work.
 
 ```
-python detopt.py -d sims -i simNo_1-s_21-m_100-h_10-cna_0.1.tree -r simNo_1-s_21-m_100-h_10-cna_0.1-cov_100.reads.input -g simNo_1-s_21-m_100-h_10-cna_0.1.groundtruth.tree
+python detopt.py -d input -i example.tree -r example.reads.input
 ```
 
 ### 4. Input
@@ -56,7 +58,7 @@ Upon obtaining VCFs and HATCHet's `seg.ucn` output files, the user should conver
 	mut0	S2	0	50	1|1	1.0	1|1	0.0	2|1	0.0
 
 
-Please see the `sims/` directory for an example of both inputs. The user should provide read counts for each mutation for each sample, even if the variant read counts are 0 in some samples.
+Please see the `input/` directory for an example of both inputs. The user should provide read counts for each mutation for each sample, even if the variant read counts are 0 in some samples.
 
 The user should be able to run `DETOPT` on a real dataset with the command line options `-d (--dir)`, `-i (--input)`, and `-r (--reads)` specifying their corresponding inputs properly. Option `-g (--ground_truth)` should only be used when testing simulations.
 
@@ -80,4 +82,4 @@ By default, `DETOPT` outputs a single file with suffix `results.tsv` which, for 
 
 ### 6. Correspondence
 
-Feel free to open an issue if you'd like to discuss usage of `DETOPT`.
+If you encounter any issues during setting up or running `DETOPT`, please open an issue on the repository or contact Suraj Joshi (`suraj.joshi@nih.gov`) or Salem Malikic (`salem.malikic@nih.gov`).

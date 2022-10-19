@@ -11,6 +11,14 @@ def floatjoin(L, sep):
 	return sep.join(list(map(str, L)))
 
 
+def asg2string(asg):
+	vals = []
+	for k in asg.keys():
+		(x, y) = asg[k]
+		vals.append(f'{k}:({x},{y})')
+	return ';'.join(vals)
+
+
 def has_aberrant_state(row):
 	state_cols = [col for col in row.index if 'state' in col]
 	states = set(list(row[state_cols]))

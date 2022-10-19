@@ -10,7 +10,7 @@ from ast import literal_eval as lit
 from util import *
 from statistics import mean
 from tree_scoring import anc_desc, diff_lin
-
+from itertools import combinations, product
 
 ### PARSER
 if __name__ == '__main__':
@@ -27,10 +27,6 @@ if __name__ == '__main__':
 						required=True,
 						type=str,
 						help='Input read data with subclonal copy number calls.')
-	parser.add_argument('-g', '--ground_truth',
-						required=False,
-						type=str,
-						help='Input ground truth tree file. To be used if running on simulations.')
 	parser.add_argument('-o', '--out',
 						required=False,
 						type=str,
@@ -47,10 +43,8 @@ DATA_DIR = args.dir
 print(f"INPUT FILE: {args.input}")
 
 tree_file = f'{DATA_DIR}/{args.input}' #f'{TREE_DIR}/{SIM_NAME}.tree.tsv'.replace(f'h_{args.num_samples}', 'h_40')
-true_tree_file = f'{DATA_DIR}/{args.ground_truth}'#f'{SIM_DIR}/{SIM_NAME}.tree.tsv'.replace('.neutral','').replace(f'h_{args.num_samples}', 'h_40')
 
 tree = pd.read_csv(tree_file, header=0, index_col=False, sep='\t')
-true_tree = pd.read_csv(true_tree_file, header=0, index_col=False, sep='\t')
 
 reads_input = f'{DATA_DIR}/{args.reads}'
 reads_df = pd.read_csv(reads_input, header=0, index_col=False, sep='\t')
@@ -65,16 +59,7 @@ else: num_threads = int(num_threads)
 print(f"Using {num_threads} threads.")
 
 
-def freqs_from_true_tree(node, tree):
-	res = {}
-	samples = true_tree.iloc[0]['SAMPLE_IDS'].split(',')
-	freqs = true_tree[true_tree['NODE_ID'] == node].squeeze()['SAMPLE_NODE_FREQUENCIES'].split(',')
-	for i in range(len(samples)):
-		res[samples[i]] = float(freqs[i])
-	return res
-
-
-def parse_tree(df, vafs, is_true_tree=False):
+def parse_tree(df, vafs):
 	samples = df.iloc[0]['SAMPLE_IDS'].split(',')
 	vec, freqs = {}, {}
 	for (i, row) in df.iterrows():
@@ -103,11 +88,13 @@ def parse_data(df, mut):
 	return states, vafs
 
 
-def fill(assignment, states, anc, nodes):
+def fill_fast(assignment, states, anc, nodes):
 	'''
 	given a single node assigned an aberrant CN state,
 	fill in the copy numbers of all descendants of this node as the same state
 	fill in all other nodes as the diploid state
+
+	faster version for a single CNA
 	'''
 	nodes_left = copy.deepcopy(nodes)
 	nodes_left.remove(list(assignment.keys())[0])
@@ -121,6 +108,96 @@ def fill(assignment, states, anc, nodes):
 		assignment[node] = states[0]
 	assignment['ROOT'] = (1,1)
 	return assignment
+
+
+def fill(assignment, states, anc, nodes):
+	'''
+	fill in the copy numbers of all descendants of aberrant nodes as the same state
+	fill in all other nodes as the diploid state
+
+	propagate to descendants starting from the least diploid state
+	this is under the assumption that lower copy numbers should occur earlier
+	'''
+	nodes_left = copy.deepcopy(nodes)
+	nodes_left.remove('ROOT')
+	assigned = [node for node in assignment.keys() if assignment[node] != (1,1)]
+
+	for aberrant_node in assigned:
+		for node in descendants(aberrant_node, anc):
+			assignment[node] = assignment[aberrant_node] # propagate the same state to descendants
+			if node in nodes_left:
+				nodes_left.remove(node)
+	for node in nodes_left: # remaining nodes get diploid state
+		assignment[node] = states[0]
+
+	assignment['ROOT'] = (1,1)
+	return assignment
+
+
+def assignCNAs_fast(mutation, vec, node_freqs, states, vafs):
+	# generate all possible assignments of copy number states to tree nodes
+	# only the mutational (non-normal) states are given
+	# fast implementation: we assume there are only two states
+	# score all possible assignments and choose the best one
+	start = time.time()
+	assignment_scores = {} # maps assigned node to its score from our qilp	
+	anc = vec_to_anc_matrix(vec)
+	nodes = list(vec.keys())
+	states = states_to_int(states)
+	for node in nodes:
+		if node == 'ROOT': continue # don't assign mut to root node
+		state_assignment = {node : states[1]} # pick the aberrant tumor state
+		state_assignment = fill_fast(state_assignment, states, anc, nodes) # fill in remaining states
+
+		(node_assigned, objective, model) = solve(mutation, state_assignment, vec, node_freqs, vafs)
+
+		hashed_assignment = json.dumps(state_assignment, sort_keys=True) # https://stackoverflow.com/questions/5884066
+		assignment_scores[(node, node_assigned, hashed_assignment, model)] = objective
+
+	(node_of_event, node_of_mutation, bestasg, bestmodel) = min(assignment_scores, key=assignment_scores.get)
+
+	print(f"Optimal assignment: Mutation {mutation} attaches to Node {node_of_mutation}")
+	end = time.time()
+	bestasg = values_to_tuple(lit(bestasg)) # revert hashed assignment
+	return node_of_mutation, bestasg, bestmodel
+
+
+
+def assignCNAs_bruteforce(mutation, vec, node_freqs, states, vafs):
+	'''
+	generate all possible assignments of copy number states to tree nodes
+
+	only the mutational (non-normal) states are given
+	right now, we assume there are only two states
+
+	score all possible assignments and choose the best one
+	'''
+	assignment_scores = {} # maps assigned node to its score from our qilp	
+	anc = vec_to_anc_matrix(vec)
+	nodes = list(vec.keys())
+	states = states_to_int(states)
+	nodes_without_root = [node for node in nodes if node != 'ROOT']
+	for aberrant_nodes in combinations(nodes_without_root, len(states)):
+		inorder = sorted(aberrant_nodes, key=lambda node: distance_from_root(node, vec))
+		states = sorted(states, key=difference_from_diploid)
+		state_assignment = {}
+		for pairing in product(aberrant_nodes, states):
+			node_of_pair, state_of_pair = pairing
+			state_assignment[node_of_pair] = state_of_pair
+		state_assignment = fill(state_assignment, states, anc, nodes) # fill in remaining states
+
+		(node_assigned, objective, model) = solve(mutation, state_assignment, vec, node_freqs, vafs)
+
+		hashed_assignment = json.dumps(state_assignment, sort_keys=True) # https://stackoverflow.com/questions/5884066
+		assignment_scores[(node_assigned, hashed_assignment, model)] = objective
+
+	(node_of_mutation, bestasg, bestmodel) = min(assignment_scores, key=assignment_scores.get)
+
+	print(f"Optimal assignment: Mutation {mutation} attaches to Node {node_of_mutation}")
+
+	bestasg = values_to_tuple(lit(bestasg)) # revert hashed assignment
+	return node_of_mutation, bestasg, bestmodel
+
 
 
 def solve(mutation, asg, parent, node_freqs, vafs):
@@ -260,46 +337,6 @@ def solve(mutation, asg, parent, node_freqs, vafs):
 		return ('ROOT', 1e6, model)
 
 
-
-### Generate all possible CNA assignments, score each, and choose the best one
-def assignCNAs_bruteforce(mutation, vec, node_freqs, states, vafs):
-	'''
-	generate all possible assignments of copy number states to tree nodes
-
-	only the mutational (non-normal) states are given
-	right now, we assume there are only two states
-
-	score all possible assignments and choose the best one
-	'''
-	start = time.time()
-	assignment_scores = {} # maps assigned node to its score from our qilp	
-	anc = vec_to_anc_matrix(vec)
-	nodes = list(vec.keys())
-	states = states_to_int(states)
-	for node in nodes:
-		if node == 'ROOT': continue # don't assign mut to root node
-		state_assignment = {node : states[1]} # pick the aberrant tumor state
-		state_assignment = fill(state_assignment, states, anc, nodes) # fill in remaining states
-
-		(node_assigned, objective, model) = solve(mutation, state_assignment, vec, node_freqs, vafs)
-
-		hashed_assignment = json.dumps(state_assignment, sort_keys=True) # https://stackoverflow.com/questions/5884066
-		assignment_scores[(node, node_assigned, hashed_assignment, model)] = objective
-
-	'''
-	for k in assignment_scores.keys():
-		node_assigned = k[1]
-		print(k[0], k[1], assignment_scores[k])
-	'''
-	(node_of_event, node_of_mutation, bestasg, bestmodel) = min(assignment_scores, key=assignment_scores.get)
-
-	print(f"Optimal assignment: Mutation {mutation} attaches to Node {node_of_mutation}")
-	end = time.time()
-	bestasg = values_to_tuple(lit(bestasg)) # revert hashed assignment
-	return node_of_event, node_of_mutation, bestasg, bestmodel
-
-
-
 ########
 # MAIN #
 ########
@@ -319,38 +356,24 @@ if len(muts_tested) > 0:
 	samples = tree.iloc[0]['SAMPLE_IDS'].split(',')
 	vafs = parse_vafs(reads_df, samples)
 	vec, freqs, samples_chosen = parse_tree(tree, vafs)
-	true_vec, _, _ = parse_tree(true_tree, vafs, True)
 
 	final_assignments = {}
 	for mut in muts_tested:
 		# parse the data and solve the model for each mutation individually
 		states, vafs_of_mut = parse_data(reads_df, mut)
-		node_of_event, node_of_mutation, bestasg, bestmodel = assignCNAs_bruteforce(mut, vec, freqs, states, vafs_of_mut)
+		if len(states) < 3:
+			node_of_mutation, bestasg, bestmodel = assignCNAs_fast(mut, vec, freqs, states, vafs_of_mut)
+		else:
+			node_of_mutation, bestasg, bestmodel = assignCNAs_bruteforce(mut, vec, freqs, states, vafs_of_mut)
 
-		final_assignments[mut] = (node_of_mutation, node_of_event)
-
-		if args.ground_truth is not None: # score simulations
-			actual_node = get_actual_node(mut, tree, true_tree)
-			lab = 'SNV_IDS'
-
-			ancDesc = anc_desc(mut, node_of_mutation, all_mutations, vec_to_anc_matrix(true_vec),
-							   vec_to_anc_matrix(vec), true_tree, tree, 'SNV_IDS')
-			diffLin = diff_lin(mut, node_of_mutation, all_mutations, vec_to_anc_matrix(true_vec),
-							   vec_to_anc_matrix(vec), true_tree, tree, 'SNV_IDS')
-			print(f"ancDesc: {ancDesc}, diffLin: {diffLin}")
-			avg_anc_desc += ancDesc
-			ancdescs.append(ancDesc)
-			avg_diff_lin += diffLin
-
-	if args.ground_truth is not None:
-		print(f"Ancestor-Descendant Accuracy: {avg_anc_desc / len(muts_tested)}")
-		print(f"Different-Lineage Accuracy: {avg_diff_lin / len(muts_tested)}")
+		asg_str = asg2string(bestasg)
+		final_assignments[mut] = (node_of_mutation, asg_str)
 
 	with open(f'{args.out}.tsv', 'w') as o:
-		o.write('MUT_ID\tNODE_ASSIGNED\tNODE_OF_CNA\n')
+		o.write('MUT_ID\tNODE_ASSIGNED\tCNA_ASSIGNMENTS\n')
 		for k in final_assignments.keys():
-			node_of_mut, node_of_cna = final_assignments[k]
-			o.write(f'{k}\t{node_of_mut}\t{node_of_cna}\n')
+			node_of_mut, cnas_at_node = final_assignments[k]
+			o.write(f'{k}\t{node_of_mut}\t{cnas_at_node}\n')
 
 else:
 	print("There were no aberrant mutations to place. ")
